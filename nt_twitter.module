@@ -1,0 +1,391 @@
+<?php
+/**
+ * @file
+ * @copyright The Royal National Theatre
+ * @author John-Paul Drawneek
+ */
+
+/**
+ * Implements hook_node_info().
+ *
+ * @return array
+ *   An array of information defining the module's node types.
+ */
+function nt_twitter_node_info() {
+  return array(
+    'nt_twitter' => array(
+      'name' => t('NT Twitter'),
+      'base' => 'nt_twitter',
+      'description' => t('Create a block for holding tweets to which look good.'),
+      'locked' => TRUE,
+      'has_title' => TRUE,
+    ),
+  );
+}
+/**
+ * Implements hook_menu().
+ *
+ * @return array
+ *   Menu config
+ */
+function nt_twitter_menu() {
+  return array();
+}
+/**
+ * Implements hook_theme().
+ *
+ * @param string $existing
+ *   An array of existing implementations that may be used for override
+ *   purposes.
+ * @param string $type
+ *   Whether a theme, module, etc. is being processed.
+ * @param string $theme
+ *   The actual name of theme, module, etc. that is being being processed.
+ * @param string $path
+ *   The directory path of the theme or module, so that it doesn't need to be
+ *   looked up.
+ *
+ * @return array
+ *   An associative array of theme hook information.
+ */
+function nt_twitter_theme($existing, $type, $theme, $path) {
+  return array(
+    'nt_twitter_table' => array(
+      'render element' => 'element',
+      'path' => $path . '/templates',
+      'file' => 'theme.inc',
+    ),
+  );
+}
+/**
+ * Implements hook_form().
+ *
+ * @param array $node
+ *   The node being added or edited.
+ * @param array $form_state
+ *   The form state array.
+ *
+ * @return array
+ *   An array containing the title and any custom form elements to be displayed
+ *   in the node editing form.
+ */
+function nt_twitter_form($node, $form_state) {
+  $form = node_content_form($node, $form_state);
+  $radio_default = NULL;
+  if (!isset($form_state['nt_twitter'])) {
+    if (isset($form_state['node'])
+      && isset($form_state['node']->nt_twitter_type)
+      && $form_state['node']->nt_twitter_type[LANGUAGE_NONE][0]['value'] == 'picked') {
+      $form_state['values']['nt_twitter_chnl']
+        = $form_state['node']->nt_twitter_chnl;
+      $form_state['values']['nt_twitter_hash']
+        = $form_state['node']->nt_twitter_hash;
+      $radio_default = $form_state['node']->tweet_list['select_tweet'];
+      _nt_twitter_populate_tweets($form, $form_state);
+    }
+    else {
+      $form_state['nt_twitter'] = array();
+    }
+  }
+  if (!isset($form_state['nt_twitter']['ordering'])) {
+    $radios = array();
+  }
+  else {
+    $radios = array_combine(
+      $form_state['nt_twitter']['ordering'],
+      $form_state['nt_twitter']['ordering']
+    );
+  }
+
+  $form['tweet_list'] = array(
+    '#theme' => 'nt_twitter_table',
+    '#type'  => 'fieldset',
+    '#title' => t('List of tweets'),
+    '#tree'  => TRUE,
+    '#data'  => $form_state['nt_twitter'],
+    'select_tweet' => array(
+      '#type' => 'radios',
+      '#options' => $radios,
+      '#default_value' => $radio_default,
+    ),
+  );
+  $form['tweet_list']['get_list_tweets'] = array(
+    '#type' => 'submit',
+    '#value' => 'Get List of tweets',
+    '#submit' => array('nt_twitter_list_tweets_submit'),
+    '#validate' => array('nt_twitter_list_tweets_validate'),
+    '#limit_validation_errors' => array(
+      array('nt_twitter_hash'),
+      array('nt_twitter_chnl'),
+    ),
+  );
+  $form['#attached']['js'][]
+    = drupal_get_path('module', 'nt_twitter') . '/js/jquery.tablesorter.min.js';
+  $form['#attached']['js'][]
+    = drupal_get_path('module', 'nt_twitter') . '/js/form.js';
+  $form['#attached']['css'][]
+    = drupal_get_path('module', 'nt_twitter') . '/css/style.css';
+  $form['#submit'] = array('nt_twitter_pack_save_submit');
+  $form['#validate'][] = 'nt_twitter_picked_tweets_validate';
+  return $form;
+}
+/**
+ * List tweets validate.
+ *
+ * @param array $form
+ *   The form being added or edited.
+ * @param array $form_state
+ *   The form state array.
+ *
+ * @return array
+ *   An array containing the title and any custom form elements to be displayed
+ *   in the node editing form.
+ */
+function nt_twitter_list_tweets_validate($form, &$form_state) {
+
+  $channel = $form_state['values']['nt_twitter_chnl'][LANGUAGE_NONE][0]['value'];
+  $hashtag = $form_state['values']['nt_twitter_hash'][LANGUAGE_NONE][0]['value'];
+  if (empty($channel) && empty($hashtag)) {
+    form_error($form['nt_twitter_chnl'], t('You must select either a channel or hashtag.'));
+    form_error($form['nt_twitter_hash'], 'See above');
+  }
+}
+/**
+ * Picked tweets validate.
+ *
+ * @param array $form
+ *   The form being added or edited.
+ * @param array $form_state
+ *   The form state array.
+ *
+ * @return array
+ *   An array containing the title and any custom form elements to be displayed
+ *   in the node editing form.
+ */
+function nt_twitter_picked_tweets_validate($form, &$form_state) {
+
+  $channel = $form_state['values']['nt_twitter_chnl'][LANGUAGE_NONE][0]['value'];
+  $hashtag = $form_state['values']['nt_twitter_hash'][LANGUAGE_NONE][0]['value'];
+  if (empty($channel) && empty($hashtag)) {
+    form_error($form['nt_twitter_chnl'], t('You must select either a channel or hashtag.'));
+    form_error($form['nt_twitter_hash'], 'See above');
+  }
+  if ($form_state['values']['nt_twitter_type'][LANGUAGE_NONE][0]['value'] == 'picked'
+    && empty($form_state['values']['tweet_list']['select_tweet'])) {
+    form_error($form['tweet_list'], t('You must select a tweet.'));
+  }
+}
+/**
+ * List tweets submit.
+ *
+ * @param array $form
+ *   The node being added or edited.
+ * @param array $form_state
+ *   The form state array.
+ *
+ * @return array
+ *   An array containing the title and any custom form elements to be displayed
+ *   in the node editing form.
+ */
+function nt_twitter_list_tweets_submit($form, &$form_state) {
+  _nt_twitter_populate_tweets($form, $form_state);
+
+  $form_state['rebuild'] = TRUE;
+}
+/**
+ * Helper function to get list of tweets.
+ * @access private
+ *
+ * @param array $form
+ *   The node being added or edited.
+ * @param array $form_state
+ *   The form state array.
+ */
+function _nt_twitter_populate_tweets($form, &$form_state) {
+  $query = '';
+  if (!empty($form_state['values']['nt_twitter_chnl'][LANGUAGE_NONE][0]['value'])) {
+    $query .= 'from:' .
+      $form_state['values']['nt_twitter_chnl'][LANGUAGE_NONE][0]['value'] . ' ';
+  }
+  if (!empty($form_state['values']['nt_twitter_hash'][LANGUAGE_NONE][0]['value'])) {
+    $query .= '#' .
+      $form_state['values']['nt_twitter_hash'][LANGUAGE_NONE][0]['value'] . ' ';
+  }
+  $query = trim($query);
+  $url = 'http://search.twitter.com/search.json?q=' . urlencode($query);
+  $options = array(
+    'method' => 'GET',
+  );
+  $result = drupal_http_request($url, $options);
+  if ($result->code == 200) {
+    $data_decoded = json_decode($result->data);
+    $output = array();
+    $ordering = array();
+    foreach ($data_decoded->results as $item) {
+      $output[$item->id] = array(
+        'user' => $item->from_user,
+        'user_id' => $item->from_user_id,
+        'tweet' => $item->text,
+        'date' => $item->created_at,
+      );
+      $ordering[] = $item->id;
+    }
+    $form_state['nt_twitter']['data'] = $output;
+    $form_state['nt_twitter']['ordering'] = $ordering;
+  }
+  else {
+    if (isset($result->data)) {
+      $error = json_decode($result->data)->error;
+    }
+    else {
+      $error = $result->error;
+    }
+    drupal_set_message(
+      t(
+        'Twitter lookup failed with code: :code, :message',
+        array(':code' => $result->code, ':message' => $error)
+      ),
+      'error'
+    );
+    $form_state['nt_twitter'] = array();
+  }
+}
+/**
+ * This is to pack the override image data into its correct row.
+ *
+ * @param array $form
+ *   The node being added or edited.
+ * @param array $form_state
+ *   The form state array.
+ */
+function nt_twitter_pack_save_submit($form, &$form_state) {
+  if ($form_state['values']['nt_twitter_type'][LANGUAGE_NONE][0]['value']
+    == 'picked') {
+    $form_state['values']['tweet_list']['tweet']
+      = $form_state['nt_twitter']['data'][$form_state['values']['tweet_list']['select_tweet']]['tweet'];
+  }
+}
+/**
+ * Implements hook_insert().
+ *
+ * This hook is invoked only on the module that defines the node's content type
+ * (use hook_node_insert() to act on all node insertions).
+ *
+ * This hook is invoked from node_save() after the node is inserted into the
+ * node table in the database, before field_attach_insert() is called, and
+ * before hook_node_insert() is invoked.
+ *
+ * @param stdClass $node
+ *   The node that is being created.
+ */
+function nt_twitter_insert($node) {
+  if ($node->nt_twitter_type[LANGUAGE_NONE][0]['value'] == 'picked') {
+    db_insert('nt_twitter_picked')->fields(array(
+      'nid' => $node->nid,
+      'vid' => $node->vid,
+      'tweet_id' => $node->tweet_list['select_tweet'],
+      'tweet' => $node->tweet_list['tweet'],
+      'created' => time(),
+      'changed' => time(),
+    ))->execute();
+  }
+}
+/**
+ * Implements hook_load().
+ *
+ * @param array $nodes
+ *   An array of the nodes being loaded, keyed by nid.
+ */
+function nt_twitter_load($nodes) {
+  foreach ($nodes as $nid => &$node) {
+    $result = db_query(
+      "SELECT tweet_id, tweet FROM {nt_twitter_picked} WHERE nid = :nid AND vid = :vid",
+      array(':nid' => $nid, ':vid' => $node->vid)
+    );
+    $result = $result->fetch();
+    if ($result) {
+      $node->tweet_list['select_tweet'] = $result->tweet_id;
+      $node->tweet_list['tweet'] = $result->tweet;
+    }
+    else {
+      $node->tweet_list = array();
+    }
+  }
+}
+/**
+ * Implements hook_update().
+ *
+ * This hook is invoked only on the module that defines the node's content type
+ * (use hook_node_update() to act on all node updates).
+ *
+ * This hook is invoked from node_save() after the node is updated in the node
+ * table in the database, before field_attach_update() is called, and before
+ * hook_node_update() is invoked.
+ *
+ * @param stdClass $node
+ *   The node that is being updated.
+ */
+function nt_twitter_update($node) {
+  if ($node->vid == $node->original->vid) {
+    if ($node->nt_twitter_type[LANGUAGE_NONE][0]['value'] == 'picked') {
+      db_update('nt_twitter_picked')->fields(array(
+        'tweet_id' => $node->tweet_list['select_tweet'],
+        'tweet' => $node->tweet_list['tweet'],
+        'changed' => time(),
+      ))
+        ->condition('nid', $node->nid)
+        ->condition('vid', $node->vid)
+        ->execute();
+    }
+    else {
+      db_delete('nt_twitter_picked')
+      ->condition('nid', $node->nid)
+      ->condition('vid', $node->vid)
+      ->execute();
+    }
+  }
+  else {
+    if ($node->nt_twitter_type[LANGUAGE_NONE][0]['value'] == 'picked') {
+      db_insert('nt_twitter_picked')->fields(array(
+        'nid' => $node->nid,
+        'vid' => $node->vid,
+        'tweet_id' => $node->tweet_list['select_tweet'],
+        'tweet' => $node->tweet_list['tweet'],
+        'created' => time(),
+        'changed' => time(),
+      ))->execute();
+    }
+  }
+}
+/**
+ * Implements hook_delete().
+ *
+ * This hook is invoked only on the module that defines the node's content type
+ * (use hook_node_delete() to respond to all node deletions).
+ *
+ * This hook is invoked from node_delete_multiple() after the node has been
+ * removed from the node table in the database, before hook_node_delete() is
+ * invoked, and before field_attach_delete() is called.
+ *
+ * @param stdClass $node
+ *   The node that is being deleted.
+ */
+function nt_twitter_delete($node) {
+  db_delete('nt_twitter_picked')
+      ->condition('nid', $node->nid)
+      ->execute();
+}
+/**
+ * Implements hook_node_revision_delete().
+ *
+ * Remove revision data from twitter picked table.
+ *
+ * @param stdClass $node
+ *   The node revision (node object) that is being deleted.
+ */
+function nt_twitter_revision_delete($node) {
+  db_delete('nt_twitter_picked')
+      ->condition('nid', $node->nid)
+      ->condition('vid', $node->vid)
+      ->execute();
+}

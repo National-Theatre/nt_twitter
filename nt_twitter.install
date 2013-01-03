@@ -1,0 +1,200 @@
+<?php
+/**
+ * @file
+ * @copyright The Royal National Theatre
+ * @author John-Paul Drawneek
+ */
+
+/**
+ * Implements hook_schema().
+ *
+ * @return array
+ *   A schema definition structure array.
+ */
+function nt_twitter_schema() {
+  return array(
+    'nt_twitter_picked' => array(
+      'description' => 'Data for storing picked tweets.',
+      'fields' => array(
+        'id' => array(
+          'description' => 'The primary identifier for a node row.',
+          'type' => 'serial',
+          'unsigned' => TRUE,
+          'not null' => TRUE,
+        ),
+        'nid' => array(
+          'description' => 'The identifier for the node this item belongs to.',
+          'type' => 'int',
+          'unsigned' => TRUE,
+          'not null' => TRUE,
+        ),
+        'vid' => array(
+          'description' => 'The version for the node this item belongs to.',
+          'type' => 'int',
+          'unsigned' => TRUE,
+          'not null' => TRUE,
+        ),
+        'tweet_id' => array(
+          'description' => 'Tweet id, which is a really long number',
+          'type' => 'varchar',
+          'length' => 128,
+          'not null' => TRUE,
+          'default' => '',
+        ),
+        'tweet' => array(
+          'description' => 'The tweet message, stored for speed.',
+          'type' => 'varchar',
+          'length' => 155,
+          'not null' => TRUE,
+          'default' => '',
+        ),
+        'created' => array(
+          'description' => 'The timestamp from when this was created.',
+          'type' => 'int',
+          'unsigned' => TRUE,
+          'not null' => TRUE,
+        ),
+        'changed' => array(
+          'description' => 'The timestamp from when this was changed.',
+          'type' => 'int',
+          'unsigned' => TRUE,
+          'not null' => TRUE,
+          'default' => 0,
+        ),
+      ),
+      'indexes' => array(
+        'node_changed' => array('changed'),
+        'node_created' => array('created'),
+        'node_nid' => array('nid'),
+        'node_vid' => array('vid'),
+      ),
+      'unique keys' => array(),
+      'foreign keys' => array(),
+      'primary key' => array('id'),
+    ),
+  );
+}
+/**
+ * Implements hook_field_schema().
+ *
+ * @param array $field
+ *   A field structure.
+ */
+function nt_twitter_field_schema($field) {
+
+}
+/**
+ * Implements hook_install().
+ */
+function nt_twitter_install() {
+  node_types_rebuild();
+  $types = node_type_get_types();
+  $nt_twitter = $types['nt_twitter'];
+  foreach (_nt_twitter_installed_fields() as $field) {
+    field_create_field($field);
+  }
+  foreach (_nt_twitter_installed_instances() as $instance) {
+    $instance['entity_type'] = 'node';
+    $instance['bundle'] = $nt_twitter->type;
+    field_create_instance($instance);
+  }
+}
+/**
+ * Implements hook_uninstall().
+ */
+function nt_twitter_uninstall() {
+  $sql = 'SELECT nid FROM {node} n WHERE n.type = :type';
+  $result = db_query($sql, array(':type' => 'nt_twitter'));
+  $nids = array();
+  foreach ($result as $row) {
+    $nids[] = $row->nid;
+  }
+  node_delete_multiple($nids);
+  node_type_delete('nt_twitter');
+
+  foreach (array_keys(_nt_twitter_installed_fields()) as $field_name) {
+    field_delete_field($field_name);
+  }
+  field_purge_batch(1000);
+}
+/**
+ * NT Twitter fields config.
+ * @access private
+ *
+ * @return array
+ *   instanaces config
+ */
+function _nt_twitter_installed_fields() {
+  return array(
+    'nt_twitter_chnl' => array(
+      'field_name'  => 'nt_twitter_chnl',
+      'cardinality' => 1,
+      'type'        => 'text',
+    ),
+    'nt_twitter_hash' => array(
+      'field_name'  => 'nt_twitter_hash',
+      'cardinality' => 1,
+      'type'        => 'text',
+    ),
+    'nt_twitter_type' => array(
+      'field_name'  => 'nt_twitter_type',
+      'cardinality' => 1,
+      'type'        => 'list_text',
+      'settings'    => array(
+        'allowed_values' => array(
+          'latest' => 'Get latest tweet',
+          'picked' => 'Pick a tweet to use',
+        ),
+      ),
+    ),
+  );
+}
+/**
+ * NT Twitter instances config.
+ * @access private
+ *
+ * @return array
+ *   instanaces config
+ */
+function _nt_twitter_installed_instances() {
+  $t = get_t();
+  return array(
+    'nt_twitter_chnl' => array(
+      'field_name' => 'nt_twitter_chnl',
+      'label'       => $t('Twitter channel.'),
+      'description' => $t('User feed to read from.'),
+      'widget'      => array(
+        'type'    => 'text_textfield',
+        'settings' => array(
+          'size' => 60,
+        ),
+      ),
+      'locked' => TRUE,
+    ),
+    'nt_twitter_hash' => array(
+      'field_name' => 'nt_twitter_hash',
+      'label'       => $t('Hash tag'),
+      'description' => $t('Hash tag to filter on.  Do not include the hash.'),
+      'widget'      => array(
+        'type'    => 'text_textfield',
+        'settings' => array(
+          'size' => 60,
+        ),
+      ),
+      'locked' => TRUE,
+    ),
+    'nt_twitter_type' => array(
+      'field_name'  => 'nt_twitter_type',
+      'label'       => $t('Twitter Mode'),
+      'description' => $t('Which mode to display the tweet.'),
+      'required'    => TRUE,
+      'widget'      => array(
+        'type'    => 'options_buttons',
+      ),
+      'default_value' => array(
+        array('value' => 'latest'),
+      ),
+      'locked' => TRUE,
+    ),
+  );
+}

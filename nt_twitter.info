@@ -1,0 +1,12 @@
+name = NT Twitter Blocks
+description = Module for creating twitter quote blocks.
+core = 7.x
+; stylesheets[all][] =
+; scripts[] =
+; files[] =
+dependencies[] = field
+dependencies[] = list
+package = "National Theatre"
+; php = 5.2
+version = 7.x-1.0 
+; configure =
