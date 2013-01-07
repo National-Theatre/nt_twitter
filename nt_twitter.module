@@ -55,7 +55,47 @@ function nt_twitter_theme($existing, $type, $theme, $path) {
       'path' => $path . '/templates',
       'file' => 'theme.inc',
     ),
+    'nt_twitter_block_latest' => array(
+      'variables' => array('node' => NULL),
+      'template'  => 'templates/nt-twitter-block-latest',
+      'preprocess functions' => array('nt_twitter_block_preprocess'),
+    ),
+    'nt_twitter_block_tweet' => array(
+      'variables' => array('node' => NULL),
+      'template'  => 'templates/nt-twitter-block-tweet',
+      'preprocess functions' => array('nt_twitter_block_preprocess'),
+    ),
   );
+}
+
+function nt_twitter_block_preprocess(&$variables, $hook) {
+  $variables['classes_array'] = array();
+  $variables['attributes_array'] = array();
+  $variables['title_attributes_array'] = array();
+  $variables['content_attributes_array'] = array();
+  $variables['channel'] = $variables['hash'] = $variables['tweet_id'] = '';
+  $variables['tweet'] = '';
+  if (!empty($variables['node']->nt_twitter_chnl)) {
+    $variables['channel']
+      = $variables['node']->nt_twitter_chnl[LANGUAGE_NONE][0]['value'];
+  }
+  if (!empty($variables['node']->nt_twitter_hash)) {
+    $variables['hash']
+      = $variables['node']->nt_twitter_hash[LANGUAGE_NONE][0]['value'];
+  }
+  if (isset($variables['node']->tweet_list)) {
+    $variables['tweet_id'] = $variables['node']->tweet_list['select_tweet'];
+    $variables['tweet'] = $variables['node']->tweet_list['tweet'];
+    preg_match_all("#http://[a-zA-Z0-9\./]+#", $variables['tweet'], $matches);
+    foreach ($matches as $match) {
+      foreach ($match as $item) {
+        $variables['tweet'] = str_replace(
+          $match[0],
+          '<a href="' . $item . '">' . $item . '</a>', $variables['tweet']
+        );
+      }
+    }
+  }
 }
 /**
  * Implements hook_form().
@@ -388,4 +428,37 @@ function nt_twitter_revision_delete($node) {
       ->condition('nid', $node->nid)
       ->condition('vid', $node->vid)
       ->execute();
+}
+
+function nt_twitter_block_info() {
+  $result = db_query(
+    'SELECT * FROM {node} WHERE type = :type AND status = 1',
+    array(':type' => 'nt_twitter')
+  );
+  $output = array();
+  foreach ($result as $tweet) {
+    $output[$tweet->nid] = array(
+      'info'       => '(Tweet) ' . $tweet->title,
+      'cache'      => DRUPAL_CACHE_PER_PAGE,
+    );
+  }
+  return $output;
+}
+
+function nt_twitter_block_view($delta = '') {
+  $node = node_load($delta);
+  if ($node->nt_twitter_type[LANGUAGE_NONE][0]['value'] == 'latest') {
+    $theme = 'nt_twitter_block_latest';
+    drupal_add_js(drupal_get_path('module', 'nt_twitter') . '/js/twitter.js');
+  }
+  else {
+    $theme = 'nt_twitter_block_tweet';
+  }
+  return array(
+    'subject' => NULL,
+    'content' => array(
+      '#theme' => $theme,
+      '#node'  => $node,
+    ),
+  );
 }
