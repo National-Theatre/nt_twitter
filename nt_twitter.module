@@ -84,8 +84,10 @@ function nt_twitter_block_preprocess(&$variables, $hook) {
       = $variables['node']->nt_twitter_hash[LANGUAGE_NONE][0]['value'];
   }
   if (isset($variables['node']->tweet_list)) {
-    $variables['tweet_id'] = $variables['node']->tweet_list['select_tweet'];
-    $variables['tweet'] = $variables['node']->tweet_list['tweet'];
+    $variables['tweet_id']
+      = isset($variables['node']->tweet_list['select_tweet'])? $variables['node']->tweet_list['select_tweet'] : '';
+    $variables['tweet']
+      = isset($variables['node']->tweet_list['tweet'])? variables['node']->tweet_list['tweet'] : '';
     preg_match_all("#http://[a-zA-Z0-9\./]+#", $variables['tweet'], $matches);
     foreach ($matches as $match) {
       foreach ($match as $item) {
