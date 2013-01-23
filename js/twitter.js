@@ -56,7 +56,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
                 twitter_id: false
             }, config);
             this.each(function () {
-                console.log(this);
+//                console.log(this);
                 tweetHelper.process($(this));
             });
         },
@@ -68,7 +68,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
             };
             
             $.getJSON(this.build_api_url(tweet), {}, function (data) {
-                console.log(data);
+//                console.log(data);
                 var info;
                 if (typeof data.text !== 'undefined') {
                     info = tweetHelper.linkURLs(data.text, data.entities);
