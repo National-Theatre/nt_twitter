@@ -109,7 +109,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
           if (typeof config.id !== 'undefined' && config.id != "") {
               return proto+"//api.twitter.com/1/statuses/show/" + config.id + '.json?' + common_params;
           } else if(typeof config.hash !== 'undefined' && config.hash != "") {
-              return proto+"//search.twitter.com/search.json?rpp=1&result_type=recent&q=from:" + encodeURIComponent(config.channel + ' ' + config.hash) + common_params;
+              return proto+"//search.twitter.com/search.json?rpp=1&result_type=recent&q=from:" + encodeURIComponent(config.channel + '+#' + config.hash) + common_params;
           } else if (typeof config.channel !== 'undefined' && config.channel != "") {
               return proto+"//search.twitter.com/search.json?rpp=1&result_type=recent&q=from:" + encodeURIComponent(config.channel) + common_params;
           } else {
@@ -143,6 +143,120 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
           if ( time_ago.seconds > 1 )  return 'about ' + time_ago.seconds + ' seconds ago';
           return 'just now';
         }
+    };
+    
+    $.fn.tweetListHelper = function(config) {
+        var settings  = {},
+            tweet     = {},
+            tweetList = [],
+            max_id    = false,
+            pointer   = 0,
+            template  = $('<blockquote class="tweet"><div class="message"></div><div class="time"></div></blockquote>'),
+            nav_tmpl  = $('<li><a class="button back" href="#">Back</a></li><li><a class="button next" href="#">Next</a></li>'),
+            wrapper;
+        function init (config, element) {
+            settings = $.extend({
+                twitter_url: "twitter.com",
+                twitter_api_url: "api.twitter.com",
+                twitter_search_url: "search.twitter.com",
+                twitter_id: false,
+                count: 4,
+                nav: 'ul.nav'
+            }, config);
+            wrapper = $(element);
+            process(settings);
+        }
+        function draw () {
+            wrapper.children().remove();
+            $(settings.nav).children().remove();
+            if (tweetList.length <= settings.count) {
+                get_tweets(tweet);
+            }
+            var tweet_tpl;
+            for (var i= pointer; (i<pointer+settings.count) && (i<tweetList.length); i++) {
+                var data = tweetList[i];
+                tweet_tpl = template.clone();
+                if (typeof data.text !== 'undefined') {
+                    info = tweetHelper.linkURLs(data.text, data.entities);
+                    info = $([info]).linkUser().linkHash();
+                    tweet_tpl.find('.message').append(info[0]);
+                    tweet_tpl.find('.time').append(tweetHelper.format_relative_time(tweetHelper.extract_relative_time(tweetHelper.parse_date(data.created_at))));
+                } else if ((typeof data.results !== 'undefined') && (data.results.length > 0)) {
+                    info = tweetHelper.linkURLs(data.results[0].text, data.results[0].entities);
+                    info = $([info]).linkUser().linkHash();
+                    tweet_tpl.find('.message').append(info[0]);
+                    tweet_tpl.find('.time').append(tweetHelper.format_relative_time(tweetHelper.extract_relative_time(tweetHelper.parse_date(data.results[0].created_at))));
+                } else {
+                    tweet_tpl.find('.message').html('<p>No tweets found.</p>');
+                }
+                wrapper.append(tweet_tpl);
+            }
+            var nav = nav_tmpl.clone();
+            if (pointer - settings.count < 0) {
+                nav.find('a.button.back').addClass('is-disabled');
+            }
+            if (pointer + settings.count > tweetList.length) {
+                nav.find('a.button.next').addClass('is-disabled');
+            }
+            nav.find('a.button.back').click(function () {
+                if (!$(this).hasClass('is-disabled')) {
+                    pointer = pointer - settings.count;
+                    draw();
+                }
+                return false;
+            });
+            nav.find('a.button.next').click(function () {
+                if (!$(this).hasClass('is-disabled')) {
+                    pointer = pointer + settings.count;
+                    draw();
+                }
+                return false;
+            });
+            $(settings.nav).append(nav);
+        }
+        function build_api_url (config) {
+          var proto = ('https:' == document.location.protocol ? 'https:' : 'http:');
+          var common_params = '&count=200&include_rts=false&include_entities=1&callback=?';
+          if (max_id) {
+              var max_id_url = '&max_id=' + max_id;
+          }
+          else {
+              var max_id_url = '';
+          }
+          return proto + "//api.twitter.com/1/statuses/user_timeline.json?screen_name=" + config.channel + max_id_url + common_params;
+        }
+        function get_tweets (tweet) {
+            $.getJSON(build_api_url(tweet), {}, function (data) {
+                var counter = 0;
+                $(data).each(function (i) {
+                    var flag = false;
+                    $(this.entities.hashtags).each(function (i) {
+                        if (this.text === tweet.hash) {
+                            flag = true;
+                        }
+                    });
+                    if (flag) {
+                        tweetList.push(this);
+                        counter++;
+                    }
+                    max_id = this.id;
+                });
+                if (counter > 0) {
+                    draw();
+                }
+            });
+        }
+        function process (settings) {
+            tweet = {
+                channel: settings.channel,
+                hash: settings.hashtag
+            };
+            get_tweets(tweet);
+        }
+        
+        return this.each(function(i, element){
+            init(config, element);
+        });
     };
     
     $.fn.tweetHelper = function() {
