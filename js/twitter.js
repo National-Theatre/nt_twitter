@@ -68,7 +68,9 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
             };
             
             $.getJSON(this.build_api_url(tweet), {}, function (data) {
-//                console.log(data);
+                if (data instanceof Array) {
+                    data = data[0];
+                }
                 var info;
                 if (typeof data.text !== 'undefined') {
                     info = tweetHelper.linkURLs(data.text, data.entities);
@@ -111,7 +113,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
           } else if(typeof config.hash !== 'undefined' && config.hash != "") {
               return proto+"//search.twitter.com/search.json?rpp=1&result_type=recent&q=from:" + encodeURIComponent(config.channel + '+#' + config.hash) + common_params;
           } else if (typeof config.channel !== 'undefined' && config.channel != "") {
-              return proto+"//search.twitter.com/search.json?rpp=1&result_type=recent&q=from:" + encodeURIComponent(config.channel) + common_params;
+              return proto+"//api.twitter.com/1/statuses/user_timeline.json?screen_name=" + config.channel + common_params;
           } else {
               return '';
           }
