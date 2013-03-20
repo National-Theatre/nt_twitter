@@ -26,12 +26,12 @@ function nt_twitter_admin_config($form, $form_state) {
       '#title'  => t('Token'),
       '#markup' => unserialize(variable_get('nt_twitter_oauth_token', 'none')),
     ),
-    'nt_cms_import_cms_key' => array(
+    'nt_twitter_oauth_key' => array(
       '#type' => 'textfield',
       '#title' => t('CMS Key'),
       '#default_value' => variable_get('nt_twitter_oauth_key', ''),
     ),
-    'nt_cms_import_cms_secret' => array(
+    'nt_twitter_oauth_secret' => array(
       '#type' => 'textfield',
       '#title' => t('CMS Secret'),
       '#default_value' => variable_get('nt_twitter_oauth_secret', ''),
