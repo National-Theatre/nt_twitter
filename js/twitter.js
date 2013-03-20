@@ -108,12 +108,14 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
         build_api_url: function (config) {
           var proto = ('https:' == document.location.protocol ? 'https:' : 'http:');
           var common_params = '&include_entities=1&callback=?';
-          if (typeof config.id !== 'undefined' && config.id != "") {
-              return proto+"//api.twitter.com/1/statuses/show/" + config.id + '.json?' + common_params;
-          } else if(typeof config.hash !== 'undefined' && config.hash != "") {
+          if (typeof config.id !== 'undefined' && config.id !== "") {
+              var query = encodeURIComponent(common_params);
+              return Drupal.settings.nt_twitter.path + "/ahah/twitter-oauth-data?url=show/" + config.id + '.json&query=' + query;
+          } else if(typeof config.hash !== 'undefined' && config.hash !== "") {
               return proto+"//search.twitter.com/search.json?rpp=1&result_type=recent&q=from:" + encodeURIComponent(config.channel + '+#' + config.hash) + common_params;
-          } else if (typeof config.channel !== 'undefined' && config.channel != "") {
-              return proto+"//api.twitter.com/1/statuses/user_timeline.json?screen_name=" + config.channel + common_params;
+          } else if (typeof config.channel !== 'undefined' && config.channel !== "") {
+              var query = encodeURIComponent('screen_name=' + config.channel + common_params);
+              return Drupal.settings.nt_twitter.path + "/ahah/twitter-oauth-data?url=user_timeline.json&query=" + query;
           } else {
               return '';
           }
@@ -225,7 +227,8 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
           else {
               var max_id_url = '';
           }
-          return proto + "//api.twitter.com/1/statuses/user_timeline.json?screen_name=" + config.channel + max_id_url + common_params;
+          var query = encodeURIComponent('screen_name=' + config.channel + max_id_url + common_params);
+          return Drupal.settings.nt_twitter.path + "/ahah/twitter-oauth-data?url=user_timeline.json&query=" + query;
         }
         function get_tweets (tweet) {
             $.getJSON(build_api_url(tweet), {}, function (data) {

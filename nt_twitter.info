@@ -6,6 +6,7 @@ core = 7.x
 ; files[] =
 dependencies[] = field
 dependencies[] = list
+dependencies[] = oauth_common
 package = "National Theatre"
 ; php = 5.2
 version = 7.x-1.0 

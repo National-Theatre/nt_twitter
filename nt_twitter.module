@@ -7,9 +7,6 @@
 
 /**
  * Implements hook_node_info().
- *
- * @return array
- *   An array of information defining the module's node types.
  */
 function nt_twitter_node_info() {
   return array(
@@ -24,29 +21,49 @@ function nt_twitter_node_info() {
 }
 /**
  * Implements hook_menu().
- *
- * @return array
- *   Menu config
  */
 function nt_twitter_menu() {
-  return array();
+  return array(
+    'admin/config/system/twitter-config' => array(
+      'title' => 'NT twitter Config',
+      'description' => 'Configure this site connection to the main NT CMS',
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('nt_twitter_admin_config'),
+      'access arguments' => array('Config twitter Connection'),
+      'type' => MENU_NORMAL_ITEM,
+      'file' => 'nt_twitter.form.inc',
+    ),
+    'admin/config/system/twitter-config/access-token' => array(
+      'title' => 'Twitter Access callback',
+      'description' => 'Configure this site connection to the main NT CMS',
+      'page callback' => 'nt_twitter_access_callback',
+      'page arguments' => array(),
+      'access arguments' => array('Config twitter Connection'),
+      'type' => MENU_CALLBACK,
+      'file' => 'nt_twitter.form.inc',
+    ),
+    'ahah/twitter-oauth-data' => array(
+      'title' => 'Sign Twitter request',
+      'page callback' => 'nt_twitter_get_oauth_data',
+      'access arguments' => array('access content'),
+      'type' => MENU_CALLBACK,
+      'file' => 'nt_twitter.form.inc',
+    ),
+  );
+}
+/**
+ * Implements hook_permission().
+ */
+function nt_twitter_permission() {
+  return array(
+    'Config twitter Connection' => array(
+      'title' => t('NT Twitter connection config'),
+      'description' => t('Configure Twitter connection settings.'),
+    ),
+  );
 }
 /**
  * Implements hook_theme().
- *
- * @param string $existing
- *   An array of existing implementations that may be used for override
- *   purposes.
- * @param string $type
- *   Whether a theme, module, etc. is being processed.
- * @param string $theme
- *   The actual name of theme, module, etc. that is being being processed.
- * @param string $path
- *   The directory path of the theme or module, so that it doesn't need to be
- *   looked up.
- *
- * @return array
- *   An associative array of theme hook information.
  */
 function nt_twitter_theme($existing, $type, $theme, $path) {
   return array(
@@ -98,6 +115,10 @@ function nt_twitter_block_preprocess(&$variables, $hook) {
       }
     }
   }
+  drupal_add_js(
+    array('nt_twitter' => array('path' => url('', array('absolute' => TRUE)))),
+    'setting'
+  );
 }
 /**
  * Implements hook_form().
@@ -456,6 +477,10 @@ function nt_twitter_block_view($delta = '') {
   else {
     $theme = 'nt_twitter_block_tweet';
   }
+  drupal_add_js(
+    array('nt_twitter' => array('path' => url('', array('absolute' => TRUE)))),
+    'setting'
+  );
   return array(
     'subject' => NULL,
     'content' => array(
@@ -463,4 +488,40 @@ function nt_twitter_block_view($delta = '') {
       '#node'  => $node,
     ),
   );
+}
+/**
+ * Callback to get the auth token.
+ *
+ * @param array $form
+ *   Current from structure.
+ * @param array $form_state
+ *   Current form structure state.
+ *
+ * @return array
+ *   Form structure to be rendered.
+ */
+function nt_twitter_config_get_token($form, &$form_state) {
+  $key = variable_get('nt_twitter_oauth_key', '');
+  $secret = variable_get('nt_twitter_oauth_secret', '');
+  $consumer = new \DrupalOAuthConsumer($key, $secret);
+  $client = new \DrupalOAuthClient($consumer);
+  $endpoint = 'https://api.twitter.com/oauth/request_token';
+  $r_token = $client->getRequestToken(
+    $endpoint,
+    array(
+      'callback' => url(
+        'admin/config/system/twitter-config/access-token',
+        array('absolute' => TRUE)
+      ),
+    )
+  );
+  variable_set('nt_twitter_rtoken', serialize($r_token));
+  $options = array(
+    'query' => array(
+      'oauth_token'    => $r_token->key,
+      'oauth_version'  => 1.0,
+    ),
+  );
+  $redirect = 'https://api.twitter.com/oauth/authorize';
+  drupal_goto($redirect, $options);
 }

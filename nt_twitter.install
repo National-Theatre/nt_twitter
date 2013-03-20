@@ -103,9 +103,9 @@ function nt_twitter_install() {
  * Implements hook_uninstall().
  */
 function nt_twitter_uninstall() {
-  $sql = 'SELECT nid FROM {node} n WHERE n.type = :type';
+  $sql    = 'SELECT nid FROM {node} n WHERE n.type = :type';
   $result = db_query($sql, array(':type' => 'nt_twitter'));
-  $nids = array();
+  $nids   = array();
   foreach ($result as $row) {
     $nids[] = $row->nid;
   }
@@ -116,6 +116,10 @@ function nt_twitter_uninstall() {
     field_delete_field($field_name);
   }
   field_purge_batch(1000);
+  variable_del('nt_twitter_oauth_key');
+  variable_del('nt_twitter_oauth_secret');
+  variable_del('nt_twitter_rtoken');
+  variable_del('nt_twitter_oauth_token');
 }
 /**
  * NT Twitter fields config.
