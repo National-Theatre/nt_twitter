@@ -10,6 +10,7 @@ class NtFeedTwitter extends NtFeedData {
   protected $search   = "http://search.twitter.com/search.json?result_type=recent&rpp=100&q=";
   protected $timeline = "https://api.twitter.com/1.1/statuses/user_timeline.json?count=200&screen_name=";
   protected $tweet    = 'https://api.twitter.com/1.1/statuses/show/|id|.json';
+  protected $oauth    = FALSE;
 
   public function __construct($transport, $options) {
     $this->transport = $transport;
@@ -29,7 +30,8 @@ class NtFeedTwitter extends NtFeedData {
         $this->url = $this->search . urlencode($query) . '&src=hash';
       }
       else {
-        $this->url = $this->timeline . urlencode(trim($options['screen_name']));
+        $this->url   = $this->timeline . urlencode(trim($options['screen_name']));
+        $this->oauth = TRUE;
       }
     }
     elseif (strlen(trim($options['filter'])) > 0) {
@@ -68,9 +70,12 @@ class NtFeedTwitter extends NtFeedData {
   }
 
   protected function getItems($url) {
+    if ($this->oauth) {
+      $url = _nt_twitter_wrap_oauth($url);
+    }
     $result = $this->transport->get(
       array(
-        'url' => $url,
+        'url'     => $url,
         'options' => array(
           'method' => 'GET',
         ),
