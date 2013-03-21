@@ -586,5 +586,6 @@ function _nt_twitter_wrap_oauth($url) {
   $consumer = new DrupalOAuthConsumer($key, $secret, array());
   $token    = unserialize(variable_get('nt_twitter_oauth_token'));
   $result   = DrupalOAuthRequest::from_consumer_and_token($consumer, $token, 'GET', $url);
+  $result->sign_request(new \OAuthSignatureMethod_HMAC_SHA1(), $consumer, $token);
   return $result->to_url();
 }
