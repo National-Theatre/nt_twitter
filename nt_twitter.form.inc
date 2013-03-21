@@ -61,19 +61,14 @@ function nt_twitter_access_callback() {
 function nt_twitter_get_oauth_data() {
   $output = array();
   if (!empty($_GET) && isset($_GET['url'])) {
-    $key = variable_get('nt_twitter_oauth_key', '');
-    $secret = variable_get('nt_twitter_oauth_secret', '');
-    $consumer = new DrupalOAuthConsumer($key, $secret, array());
-    $token = unserialize(variable_get('nt_twitter_oauth_token'));
     $url = 'https://api.twitter.com/1.1/statuses/' . $_GET['url']
       . '?' . urldecode($_GET['query']);
-    $result = DrupalOAuthRequest::from_consumer_and_token($consumer, $token, 'GET', $url);
-    $result->sign_request(new \OAuthSignatureMethod_HMAC_SHA1(), $consumer, $token);
-    $twitter_raw = drupal_http_request($result->to_url(), array('method' => 'GET'));
-    $output             = $twitter_raw->data;
+    $signed_url  = _nt_twitter_wrap_oauth($url);
+    $twitter_raw = drupal_http_request($signed_url, array('method' => 'GET'));
+    $output      = $twitter_raw->data;
     print $twitter_raw->data;
     $output['error']    = FALSE;
-    $output['sign_url'] = $result->to_url();
+    $output['sign_url'] = $signed_url;
   }
   else {
     $output['error']   = TRUE;

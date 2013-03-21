@@ -84,7 +84,14 @@ function nt_twitter_theme($existing, $type, $theme, $path) {
     ),
   );
 }
-
+/**
+ * Preproccess for twitter block template.
+ *
+ * @param array $variables
+ *   Data being passed into the theme to be rendered.
+ * @param string $hook
+ *   Hook trigering this preprocess callback.
+ */
 function nt_twitter_block_preprocess(&$variables, $hook) {
   $variables['classes_array'] = array();
   $variables['attributes_array'] = array();
@@ -122,15 +129,6 @@ function nt_twitter_block_preprocess(&$variables, $hook) {
 }
 /**
  * Implements hook_form().
- *
- * @param array $node
- *   The node being added or edited.
- * @param array $form_state
- *   The form state array.
- *
- * @return array
- *   An array containing the title and any custom form elements to be displayed
- *   in the node editing form.
  */
 function nt_twitter_form($node, $form_state) {
   $form = node_content_form($node, $form_state);
@@ -330,16 +328,6 @@ function nt_twitter_pack_save_submit($form, &$form_state) {
 }
 /**
  * Implements hook_insert().
- *
- * This hook is invoked only on the module that defines the node's content type
- * (use hook_node_insert() to act on all node insertions).
- *
- * This hook is invoked from node_save() after the node is inserted into the
- * node table in the database, before field_attach_insert() is called, and
- * before hook_node_insert() is invoked.
- *
- * @param stdClass $node
- *   The node that is being created.
  */
 function nt_twitter_insert($node) {
   if ($node->nt_twitter_type[LANGUAGE_NONE][0]['value'] == 'picked') {
@@ -355,9 +343,6 @@ function nt_twitter_insert($node) {
 }
 /**
  * Implements hook_load().
- *
- * @param array $nodes
- *   An array of the nodes being loaded, keyed by nid.
  */
 function nt_twitter_load($nodes) {
   foreach ($nodes as $nid => &$node) {
@@ -365,10 +350,10 @@ function nt_twitter_load($nodes) {
       "SELECT tweet_id, tweet FROM {nt_twitter_picked} WHERE nid = :nid AND vid = :vid",
       array(':nid' => $nid, ':vid' => $node->vid)
     );
-    $result = $result->fetch();
-    if ($result) {
-      $node->tweet_list['select_tweet'] = $result->tweet_id;
-      $node->tweet_list['tweet'] = $result->tweet;
+    $row = $result->fetch();
+    if ($row) {
+      $node->tweet_list['select_tweet'] = $row->tweet_id;
+      $node->tweet_list['tweet']        = $row->tweet;
     }
     else {
       $node->tweet_list = array();
@@ -377,16 +362,6 @@ function nt_twitter_load($nodes) {
 }
 /**
  * Implements hook_update().
- *
- * This hook is invoked only on the module that defines the node's content type
- * (use hook_node_update() to act on all node updates).
- *
- * This hook is invoked from node_save() after the node is updated in the node
- * table in the database, before field_attach_update() is called, and before
- * hook_node_update() is invoked.
- *
- * @param stdClass $node
- *   The node that is being updated.
  */
 function nt_twitter_update($node) {
   if ($node->vid == $node->original->vid) {
@@ -410,12 +385,12 @@ function nt_twitter_update($node) {
   else {
     if ($node->nt_twitter_type[LANGUAGE_NONE][0]['value'] == 'picked') {
       db_insert('nt_twitter_picked')->fields(array(
-        'nid' => $node->nid,
-        'vid' => $node->vid,
+        'nid'      => $node->nid,
+        'vid'      => $node->vid,
         'tweet_id' => $node->tweet_list['select_tweet'],
-        'tweet' => $node->tweet_list['tweet'],
-        'created' => time(),
-        'changed' => time(),
+        'tweet'    => $node->tweet_list['tweet'],
+        'created'  => time(),
+        'changed'  => time(),
       ))->execute();
     }
   }
@@ -524,4 +499,92 @@ function nt_twitter_config_get_token($form, &$form_state) {
   );
   $redirect = 'https://api.twitter.com/oauth/authorize';
   drupal_goto($redirect, $options);
+}
+/**
+ * Implements hook_nt_feed_register_settings_form_alter().
+ */
+function nt_twitter_nt_feed_register_settings_form_alter(&$form, &$form_state) {
+  if (!(isset($form_state['item']->config['NtFeedTwitter']))) {
+    $form_state['item']->config['NtFeedTwitter'] = array(
+      array(
+        'screen_name' => 'ntlive',
+        'filter'      => ''
+      ),
+    );
+  }
+  $form['NtFeedTwitter'] = array(
+    '#type'        => 'fieldset',
+    '#title'       => t('Twitter'),
+    '#collapsible' => TRUE,
+    '#tree'        => TRUE,
+  );
+  foreach ($form_state['item']->config['NtFeedTwitter'] as $config) {
+    $config += array(
+      'screen_name' => '',
+      'filter'      => '',
+    );
+    $form['NtFeedTwitter'][] = array(
+      'screen_name'  => array(
+        '#type'          => 'textfield',
+        '#title'         => t('Screen Name'),
+        '#default_value' => $config['screen_name'],
+      ),
+      'filter'  => array(
+        '#type'          => 'textfield',
+        '#title'         => t('Hash tag'),
+        '#default_value' => $config['filter'],
+      ),
+    );
+  }
+  $form['NtFeedTwitter']['add'] = array(
+    '#name' => 'NtFeedTwitterAdd',
+    '#type' => 'submit',
+    '#value' => t('More'),
+    '#weight' => count($form['NtFeedTwitter']),
+    '#submit' => array('nt_twitter_add_submit'),
+    '#limit_validation_errors' => array(),
+  );
+}
+/**
+ * Add new twitter channel.
+ *
+ * @param array $form
+ *   The node being added or edited.
+ * @param array $form_state
+ *   The form state array.
+ */
+function nt_twitter_add_submit(&$form, &$form_state) {
+  $form_state['item']->config['NtFeedTwitter'][] = array(
+    'screen_name' => 'ntlive',
+    'filter'      => '',
+  );
+  $form_state['rebuild'] = TRUE;
+}
+/**
+ * Implements hook_nt_feed_register_settings_defaults_alter().
+ */
+function nt_twitter_nt_feed_register_settings_defaults_alter(&$settings) {
+  $settings['NtFeedTwitter'] = array();
+  $settings['NtFeedTwitter'][0] = array(
+    'screen_name' => 'ntlive',
+    'filter'      => ''
+  );
+}
+/**
+ * Sign the Url for auth query of twitter.
+ * @access private
+ *
+ * @param string $url
+ *   Url to get twitter data from.
+ *
+ * @return string
+ *   Url to get twitter data with OAuth signiture.
+ */
+function _nt_twitter_wrap_oauth($url) {
+  $key      = variable_get('nt_twitter_oauth_key', '');
+  $secret   = variable_get('nt_twitter_oauth_secret', '');
+  $consumer = new DrupalOAuthConsumer($key, $secret, array());
+  $token    = unserialize(variable_get('nt_twitter_oauth_token'));
+  $result   = DrupalOAuthRequest::from_consumer_and_token($consumer, $token, 'GET', $url);
+  return $result->to_url();
 }

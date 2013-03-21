@@ -202,3 +202,22 @@ function _nt_twitter_installed_instances() {
     ),
   );
 }
+/**
+ * Implements hook_enable().
+ */
+function nt_twitter_enable() {
+  $mod_list = variable_get('nt_feed_data_types', array());
+  $mod_list['NtFeedTwitter'] = array(
+    'name' => 'Twitter',
+    'module' => 'nt_twitter',
+  );
+  variable_set('nt_feed_data_types', $mod_list);
+}
+/**
+ * Implements hook_enable().
+ */
+function nt_twitter_disable() {
+  $mod_list = variable_get('nt_feed_data_types', array());
+  unset($mod_list['NtFeedTwitter']);
+  variable_set('nt_feed_data_types', $mod_list);
+}
