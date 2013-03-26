@@ -44,7 +44,11 @@ function nt_twitter_admin_config($form, $form_state) {
   );
   return system_settings_form($form);
 }
-
+/**
+ * Callback to get capture the access token when returned from Twitter.
+ * @return string
+ *   Token passed back.
+ */
 function nt_twitter_access_callback() {
   $key = variable_get('nt_twitter_oauth_key', '');
   $secret = variable_get('nt_twitter_oauth_secret', '');
@@ -57,7 +61,9 @@ function nt_twitter_access_callback() {
   drupal_set_message(t('Access token saved.'));
   return '<pre>' . print_r($access_token, TRUE) . '</pre>';
 }
-
+/**
+ * Callback to get twitter data thats behind REST 1.1 API OAuth.
+ */
 function nt_twitter_get_oauth_data() {
   $output = array();
   if (!empty($_GET) && isset($_GET['url'])) {
@@ -65,10 +71,25 @@ function nt_twitter_get_oauth_data() {
       . '?' . urldecode($_GET['query']);
     $signed_url  = _nt_twitter_wrap_oauth($url);
     $twitter_raw = drupal_http_request($signed_url, array('method' => 'GET'));
-    $output      = $twitter_raw->data;
-    print $twitter_raw->data;
-    $output['error']    = FALSE;
-    $output['sign_url'] = $signed_url;
+    $last_tweet = variable_get('nt_twitter_last_tweet', array());
+    if ($twitter_raw->code == 200) {
+      $output      = $twitter_raw->data;
+      print $twitter_raw->data;
+      $output['error']    = FALSE;
+      $output['sign_url'] = $signed_url;
+      $last_tweet[$_GET['query']] = $twitter_raw->data;
+      variable_set('nt_twitter_last_tweet', $last_tweet);
+    }
+    else {
+      if (isset($last_tweet[$_GET['query']])) {
+        print $last_tweet[$_GET['query']];
+      }
+      else {
+        $output['error']   = TRUE;
+        $output['message'] = t('Twitter API Error, check status.');
+        drupal_json_output($output);
+      }
+    }
   }
   else {
     $output['error']   = TRUE;

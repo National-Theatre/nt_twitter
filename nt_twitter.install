@@ -7,9 +7,6 @@
 
 /**
  * Implements hook_schema().
- *
- * @return array
- *   A schema definition structure array.
  */
 function nt_twitter_schema() {
   return array(
@@ -76,9 +73,6 @@ function nt_twitter_schema() {
 }
 /**
  * Implements hook_field_schema().
- *
- * @param array $field
- *   A field structure.
  */
 function nt_twitter_field_schema($field) {
 
@@ -120,6 +114,7 @@ function nt_twitter_uninstall() {
   variable_del('nt_twitter_oauth_secret');
   variable_del('nt_twitter_rtoken');
   variable_del('nt_twitter_oauth_token');
+  variable_del('nt_twitter_last_tweet');
 }
 /**
  * NT Twitter fields config.
