@@ -122,6 +122,16 @@ function nt_twitter_block_preprocess(&$variables, $hook) {
       }
     }
   }
+  $variables['retweet'] = 0;
+  if (!empty($variables['node']->nt_twitter_retweet)) {
+    $variables['retweet']
+      = $variables['node']->nt_twitter_retweet[LANGUAGE_NONE][0]['value'];
+  }
+  $variables['direct'] = 0;
+  if (!empty($variables['node']->nt_twitter_direct)) {
+    $variables['direct']
+      = $variables['node']->nt_twitter_direct[LANGUAGE_NONE][0]['value'];
+  }
   drupal_add_js(
     array('nt_twitter' => array('path' => url('', array('absolute' => TRUE)))),
     'setting'

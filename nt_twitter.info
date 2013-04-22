@@ -11,5 +11,5 @@ dependencies[] = oauth_common
 dependencies[] = nt_feed
 package = "National Theatre"
 php = 5.3
-version = 7.x-1.0 
+version = 7.x-1.1 
 configure = admin/config/system/twitter-config
