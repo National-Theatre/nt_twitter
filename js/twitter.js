@@ -64,7 +64,9 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
             var tweet = {
                 id: element.attr('tweet_id'),
                 channel: element.attr('channel'),
-                hash: element.attr('hash')
+                hash: element.attr('hash'),
+                retweet: element.attr('retweet'),
+                direct: element.attr('direct')
             };
             
             $.getJSON(this.build_api_url(tweet), {}, function (data) {
@@ -107,7 +109,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
         },
         build_api_url: function (config) {
           var proto = ('https:' == document.location.protocol ? 'https:' : 'http:');
-          var common_params = '&include_entities=1&callback=?';
+          var common_params = '&include_entities=1&include_rts=' + config.retweet + '&direct=' + config.direct + '&callback=?';
           if (typeof config.id !== 'undefined' && config.id !== "") {
               var query = encodeURIComponent(common_params);
               return Drupal.settings.nt_twitter.path + "/ahah/twitter-oauth-data?url=show/" + config.id + '.json&query=' + query;
@@ -220,7 +222,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
         }
         function build_api_url (config) {
           var proto = ('https:' == document.location.protocol ? 'https:' : 'http:');
-          var common_params = '&count=200&include_rts=false&include_entities=1&callback=?';
+          var common_params = '&count=200&include_rts=' + config.retweet + '&direct=' + config.direct + '&include_entities=1&callback=?';
           if (max_id) {
               var max_id_url = '&max_id=' + max_id;
           }
@@ -254,7 +256,9 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
         function process (settings) {
             tweet = {
                 channel: settings.channel,
-                hash: settings.hashtag
+                hash: settings.hashtag,
+                retweet: settings.retweet,
+                direct: settings.direct
             };
             get_tweets(tweet);
         }

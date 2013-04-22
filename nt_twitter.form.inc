@@ -73,12 +73,28 @@ function nt_twitter_get_oauth_data() {
     $twitter_raw = drupal_http_request($signed_url, array('method' => 'GET'));
     $last_tweet = variable_get('nt_twitter_last_tweet', array());
     if ($twitter_raw->code == 200) {
-      $output      = $twitter_raw->data;
-      print $twitter_raw->data;
-      $output['error']    = FALSE;
-      $output['sign_url'] = $signed_url;
-      $last_tweet[$_GET['query']] = $twitter_raw->data;
-      variable_set('nt_twitter_last_tweet', $last_tweet);
+      $data_list = json_decode($twitter_raw->data);
+      $tweet_data = FALSE;
+      parse_str(urldecode($_GET['query']), $args);
+      if (!isset($args['direct']) || $args['direct'] == 0) {
+        foreach ($data_list as $data) {
+          if (strpos($data->text, '@') === FALSE || strpos($data->text, '@') > 0) {
+            $tweet_data = $data;
+            break;
+          }
+        }
+      }
+      else {
+        $tweet_data = array_shift($data_list);
+      }
+      if ($tweet_data) {
+        $output = json_encode(array($tweet_data));
+        print $output;
+        variable_set('ntshed_fp_last_tweet', $output);
+      }
+      else {
+        print $last_tweet;
+      }
     }
     else {
       if (isset($last_tweet[$_GET['query']])) {

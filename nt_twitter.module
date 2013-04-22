@@ -123,12 +123,14 @@ function nt_twitter_block_preprocess(&$variables, $hook) {
     }
   }
   $variables['retweet'] = 0;
-  if (!empty($variables['node']->nt_twitter_retweet)) {
+  if (!empty($variables['node']->nt_twitter_retweet)
+    && $variables['node']->nt_twitter_retweet[LANGUAGE_NONE][0]['value']) {
     $variables['retweet']
       = $variables['node']->nt_twitter_retweet[LANGUAGE_NONE][0]['value'];
   }
   $variables['direct'] = 0;
-  if (!empty($variables['node']->nt_twitter_direct)) {
+  if (!empty($variables['node']->nt_twitter_direct) &&
+    $variables['node']->nt_twitter_direct[LANGUAGE_NONE][0]['value']) {
     $variables['direct']
       = $variables['node']->nt_twitter_direct[LANGUAGE_NONE][0]['value'];
   }
