@@ -70,43 +70,49 @@ class NtFeedTwitter extends NtFeedData {
   }
 
   protected function getItems($url) {
+    $raw_url = $url;
     if ($this->oauth) {
       $url = _nt_twitter_wrap_oauth($url);
     }
-    $result = $this->transport->get(
-      array(
-        'url'     => $url,
-        'options' => array(
-          'method' => 'GET',
-        ),
-      )
-    );
-    if ($result->code == 200) {
-      $data = json_decode($result->data);
-      if (is_object($data) && isset($data->results)) {
-        $data = $data->results;
-      }
-      foreach ($data as $item) {
-        if ($item->id == $this->lastPointer) {
-          continue;
-        }
-//        die('<pre>' . print_r($item, TRUE) . '</pre>');
-        $this->packItem($item, TRUE);
-      }
-      if (is_object($this->data[count($this->data)-1])) {
-        $this->lastPointer = $this->data[count($this->data)-1]->id;
-      }
-      else {
-        $this->lastPointer = $this->data[count($this->data)-1]['id'];
-      }
-      //die('<pre>' . print_r($result, TRUE) . '</pre>');
-      return count($data) > 0;
+    if (($cache = cache_get($raw_url, 'nt_twitter')) !== FALSE) {
+      $data = $cache->data;
     }
     else {
-      // Log error message.
+      $result = $this->transport->get(
+        array(
+          'url'     => $url,
+          'options' => array(
+            'method' => 'GET',
+          ),
+        )
+      );
+      if ($result->code == 200) {
+        $data = json_decode($result->data);
+        if (is_object($data) && isset($data->results)) {
+          $data = $data->results;
+        }
+        cache_set($raw_url, $data, 'nt_twitter', strtotime('+1 hour'));
+      }
+      else {
+        $data = array();
+      }
+    }
+
+    foreach ($data as $item) {
+      if ($item->id == $this->lastPointer) {
+        continue;
+      }
+//        die('<pre>' . print_r($item, TRUE) . '</pre>');
+      $this->packItem($item, TRUE);
+    }
+    if (is_object($this->data[count($this->data)-1])) {
+      $this->lastPointer = $this->data[count($this->data)-1]->id;
+    }
+    else {
+      $this->lastPointer = $this->data[count($this->data)-1]['id'];
     }
     //die('<pre>' . print_r($result, TRUE) . '</pre>');
-    return FALSE;
+    return count($data) > 0;
   }
   /**
    * Render the asset in format for the plane layout.
@@ -140,22 +146,29 @@ class NtFeedTwitter extends NtFeedData {
     if (isset($this->dataKey[$id])) {
       return $this->dataKey[$id];
     }
-    $url = str_replace('|id|', $id, $this->tweet);
-    $result = $this->transport->get(
-      array(
-        'url'     => _nt_twitter_wrap_oauth($url),
-        'options' => array(
-          'method' => 'GET',
-        ),
-      )
-    );
-    if ($result->code == 200) {
-      $data = json_decode($result->data);
-      $this->packItem($data);
+    if (($cache = cache_get($id, 'nt_twitter')) !== FALSE) {
+      $this->dataKey[$id] = $cache->data;
       return $this->dataKey[$id];
     }
     else {
-      return FALSE;
+      $url = str_replace('|id|', $id, $this->tweet);
+      $result = $this->transport->get(
+        array(
+          'url'     => _nt_twitter_wrap_oauth($url),
+          'options' => array(
+            'method' => 'GET',
+          ),
+        )
+      );
+      if ($result->code == 200) {
+        $data = json_decode($result->data);
+        $this->packItem($data);
+        cache_set($id, $this->dataKey[$id], 'nt_twitter');
+        return $this->dataKey[$id];
+      }
+      else {
+        return FALSE;
+      }
     }
   }
   
